@@ -21,7 +21,7 @@ public class Indexer implements Serializable{
         _indexFileId = indexFileId;
         _indexNameSuffix = indexNameSuffix;
 
-        _map = new HashMap<>();
+        _map = new HashMap<String, Index>();
     }
 
     public Index get (String key) {
@@ -32,6 +32,18 @@ public class Indexer implements Serializable{
         Index oldIndex = get(key);
 
         _map.put(key, index);
+
+        return oldIndex;
+    }
+
+    public Index remove (String key) {
+        Index oldIndex = get(key);
+
+        if (oldIndex == null) {
+            return null;
+        }
+
+        _map.remove(key);
 
         return oldIndex;
     }

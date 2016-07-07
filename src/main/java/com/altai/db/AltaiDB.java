@@ -7,7 +7,7 @@ import com.altai.index.Index;
 import com.altai.index.Indexer;
 import com.altai.storage.Record;
 import com.altai.storage.Storage;
-import com.sun.prism.impl.Disposer;
+
 
 /**
  * Created by like on 7/3/16.
@@ -77,9 +77,12 @@ public class AltaiDB {
     }
 
     public static boolean put (String key, String value) {
-        if (key == null || value == null) {
+        // key must be not null
+        if (key == null) {
             return false;
         }
+
+        // null value means to delete the record
 
         if (key.length() < HUGE_KEY_SIZE) {
             Record record = new Record (key, value);
@@ -87,8 +90,14 @@ public class AltaiDB {
 
             Index obsoleteIdx = null;
             if (idx != null) {
-                idx.key = key;
-                obsoleteIdx = _getIndexer().put(key, idx);
+                if (value == null) {
+                    // to delete from indexer
+                    obsoleteIdx = _getIndexer().remove(key);
+                }
+                else {
+                    idx.key = key;
+                    obsoleteIdx = _getIndexer().put(key, idx);
+                }
             }
             else {
                 return false;
@@ -112,8 +121,14 @@ public class AltaiDB {
 
             Index obsoleteIdx = null;
             if (idx != null) {
-                idx.key = savedKey;
-                obsoleteIdx = _getHugeKeyIndexer().put(savedKey, idx);
+                if (value == null) {
+                    // to delete from huge key indexer
+                    obsoleteIdx = _getHugeKeyIndexer().remove(savedKey);
+                }
+                else {
+                    idx.key = savedKey;
+                    obsoleteIdx = _getHugeKeyIndexer().put(savedKey, idx);
+                }
             }
             else {
                 return false;

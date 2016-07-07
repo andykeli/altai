@@ -69,8 +69,6 @@ public class Storage {
             return null;
         }
 
-
-
         Index idx = null;
         try {
             idx = new Index(null, _activeFileId.get(), (int)_activeFileChannel.size() - offset, offset);

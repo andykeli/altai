@@ -18,7 +18,7 @@ public class HugeKeyIndexer {
         _path = path;
         _indexNameSuffix = indexNameSuffix;
 
-        _map = new HashMap<>();
+        _map = new HashMap<Long, Indexer>();
     }
 
     public Index get (String key) {
@@ -44,6 +44,19 @@ public class HugeKeyIndexer {
         }
 
         return indexer.put(key, index);
+    }
+
+    public Index remove (String key) {
+        // compute hash code of (compressed) key
+        long keyHashCode = HashCodeHelper.computeToLong(key);
+
+        Indexer indexer = getIndexer(keyHashCode);
+        if (indexer == null) {
+            // simply return
+            return null;
+        }
+
+        return indexer.remove(key);
     }
 
     private Indexer getIndexer(long keyHashCode) {
