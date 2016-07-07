@@ -7,6 +7,7 @@ import com.altai.index.Index;
 import com.altai.index.Indexer;
 import com.altai.storage.Record;
 import com.altai.storage.Storage;
+import com.sun.prism.impl.Disposer;
 
 /**
  * Created by like on 7/3/16.
@@ -19,7 +20,7 @@ public class AltaiDB {
     private static final int HUGE_KEY_SIZE = 128;
     private static final boolean IS_COMPRESSED = true;
 
-    // indexer stuff
+    // indexer stuffs
     private final Indexer _indexer;
     private final HugeKeyIndexer _hkIndexer;
 
@@ -73,6 +74,59 @@ public class AltaiDB {
 
             return record.getBuffer().toString();
         }
+    }
+
+    public static boolean put (String key, String value) {
+        if (key == null || value == null) {
+            return false;
+        }
+
+        if (key.length() < HUGE_KEY_SIZE) {
+            Record record = new Record (key, value);
+            Index idx = _getStorage().putRecord(record);
+
+            Index obsoleteIdx = null;
+            if (idx != null) {
+                idx.key = key;
+                obsoleteIdx = _getIndexer().put(key, idx);
+            }
+            else {
+                return false;
+            }
+
+            if (obsoleteIdx != null) {
+                // save it in toBeDeleted ...
+            }
+
+            // do index persistence ...
+        }
+        else {
+            // compress the key if needed
+            String savedKey = key;
+            if (IS_COMPRESSED) {
+                savedKey = KeyCompresser.compress(key);
+            }
+
+            Record record = new Record (savedKey, value);
+            Index idx = _getHkStorage().putRecord(record);
+
+            Index obsoleteIdx = null;
+            if (idx != null) {
+                idx.key = savedKey;
+                obsoleteIdx = _getHugeKeyIndexer().put(savedKey, idx);
+            }
+            else {
+                return false;
+            }
+
+            if (obsoleteIdx != null) {
+                // save it in toBeDeleted ...
+            }
+
+            // do index persistence ...
+        }
+
+        return true;
     }
 
     private static Indexer _getIndexer() {

@@ -52,17 +52,32 @@ public class Storage {
         return new Record(buffer);
     }
 
-    public Index putRecord (Record r) throws Exception {
+    public Index putRecord (Record r) {
         _createNewActiveFileIfNeeded();
 
-        int offset = (int)_activeFileChannel.size();
-        _activeFileChannel.position(_activeFileChannel.size());
+        int offset = -1;
+        try {
+            offset = (int)_activeFileChannel.size();
 
-        r.getBuffer().flip();
-        _activeFileChannel.write(r.getBuffer());
-        _activeFileChannel.force(false);
+            _activeFileChannel.position(offset);
 
-        Index idx = new Index(null, _activeFileId.get(), (int)_activeFileChannel.size() - offset, offset);
+            r.getBuffer().flip();
+            _activeFileChannel.write(r.getBuffer());
+            _activeFileChannel.force(false);
+        }
+        catch (IOException e) {
+            return null;
+        }
+
+
+
+        Index idx = null;
+        try {
+            idx = new Index(null, _activeFileId.get(), (int)_activeFileChannel.size() - offset, offset);
+        }
+        catch (IOException e) {
+            // nothing to do
+        }
         return idx;
     }
 
@@ -118,7 +133,7 @@ public class Storage {
         return _path + "/" + fileId + "." + _fileNameSuffix;
     }
 
-    private void _createNewActiveFileIfNeeded () throws Exception {
+    private void _createNewActiveFileIfNeeded () {
         if (_activeFileSize.get() >= _advisoryMaxSize) {
             _closeActiveFile();
 
@@ -159,7 +174,7 @@ public class Storage {
         }
     }
 
-    private void _openActiveFile() throws Exception {
+    private void _openActiveFile() {
         if (_activeRaf != null || _activeFileChannel != null) {
             return;
             //throw new Exception("Active File cannot be opened twice! fileName=" + _activeFileName);
