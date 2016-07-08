@@ -1,6 +1,5 @@
 package com.altai.db;
 
-import com.altai.Utils.HashCodeHelper;
 import com.altai.Utils.KeyCompresser;
 import com.altai.index.HugeKeyIndexer;
 import com.altai.index.Index;
