@@ -11,7 +11,6 @@ public class Record implements Serializable {
 
     public Record (ByteBuffer buffer) {
         this.buffer = buffer;
-        buffer.hashCode();
     }
 
     public ByteBuffer getBuffer() {

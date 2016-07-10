@@ -1,11 +1,14 @@
 package com.altai.db;
 
-import com.altai.Utils.KeyCompresser;
+import com.altai.common.KeyCompresser;
+import com.altai.common.Util;
 import com.altai.index.HugeKeyIndexer;
 import com.altai.index.Index;
 import com.altai.index.Indexer;
 import com.altai.storage.Record;
 import com.altai.storage.Storage;
+
+import java.io.File;
 
 
 /**
@@ -14,14 +17,20 @@ import com.altai.storage.Storage;
 public class AltaiDB {
     // CONSTANTS
     private static final int MEGA_BYTE = 0x1000000;
+    private static final String PATH = "/home/like/dev/test_altai";
+    private static final String INDEX_PATH = PATH + "/index";
+    private static final String HKINDEX_PATH = PATH + "/hugekey_index";
+    private static final String DATA_FILE_SUFFIX = "data";
 
     // DB settings
     private static final int HUGE_KEY_SIZE = 128;
     private static final boolean IS_COMPRESSED = true;
 
     // indexer stuffs
-    private final Indexer _indexer;
+    private Indexer _indexer;
     private final HugeKeyIndexer _hkIndexer;
+    private Indexer _incrementIndexer;
+    private HugeKeyIndexer _incrementHkIndexer;
 
     // storage stuffs
     private final Storage _store;
@@ -33,11 +42,24 @@ public class AltaiDB {
         //HUGE_KEY_SIZE = 128;
         //IS_COMPRESSED = true;
 
-        _indexer = new Indexer("/home/like/dev/test_altai/index", 1, "idx");
-        _hkIndexer = new HugeKeyIndexer("/home/like/dev/test_altai/hugekey_index", "idx.hk");
+        // load storage
+        _store = new Storage(PATH, DATA_FILE_SUFFIX, 1 * MEGA_BYTE);
+        _hkStore = new Storage(PATH, "data.hk", 5 * MEGA_BYTE);
 
-        _store = new Storage("/home/like/dev/test_altai", "data", 1 * MEGA_BYTE);
-        _hkStore = new Storage("/home/like/dev/test_altai", "data.hk", 5 * MEGA_BYTE);
+
+        // load index from 0.idx
+        String indexerFullPathName = Util.makeIndexerName(INDEX_PATH, 0);
+        _indexer = Indexer.loadIndexer(indexerFullPathName);
+        if (_indexer == null || _indexer.getMap() == null) {
+            _indexer = new Indexer (indexerFullPathName);
+        }
+        _loadIncrementIndexer();
+        _dumpIndexer();
+
+
+        //_indexer = new Indexer("/home/like/dev/test_altai/index", 0, "idx");
+        _hkIndexer = new HugeKeyIndexer(HKINDEX_PATH, "idx.hk");
+
     }
 
     public static String get(String key) {
@@ -141,6 +163,37 @@ public class AltaiDB {
         }
 
         return true;
+    }
+
+    private void _loadIncrementIndexer() {
+        // load all incremental indexers from files
+        File file = new File (INDEX_PATH);
+        String fileNames[];
+        fileNames = file.list();
+        if (fileNames.length == 0) {
+            return;
+        }
+
+        long id;
+        for (String fileName : fileNames)
+        {
+            if(fileName.endsWith(".idx")) {
+                id = Long.valueOf(fileName.substring(0, fileName.indexOf(".")));
+                Indexer indexer = Indexer.loadIndexer(Util.makeIndexerName(INDEX_PATH, id));
+                _indexer.getMap().putAll(indexer.getMap());
+            }
+        }
+
+        // generate last incremental indexer from data file
+
+    }
+
+    private void _dumpIndexer() {
+        // dump Indexer to idx.tmp
+
+        // remove xxx.idx
+
+        // rename idx.tmp to 0.idx
     }
 
     private static Indexer _getIndexer() {

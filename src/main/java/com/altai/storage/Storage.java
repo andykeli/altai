@@ -1,6 +1,8 @@
 package com.altai.storage;
 
+import com.altai.common.Util;
 import com.altai.index.Index;
+import com.altai.index.Indexer;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +33,6 @@ public class Storage {
     private FileChannel _activeFileChannel = null;
 
     // stuffs for input
-    private RandomAccessFile _inRaf = null;
 
 /*
     private static final Storage _instance = new Storage();
@@ -42,14 +43,27 @@ public class Storage {
 */
 
     public Record getRecord(Index idx) {
-        ByteBuffer in = _getInputBuffer(idx);
-        if (in == null) {
+        RandomAccessFile inRaf = _getInRaf(idx.fileId);
+        if (inRaf == null) {
             return null;
-            //throw new Exception("File cannot be opened! fileId=" + _path + "/" + String.valueOf(rd.fileId) + "." + _fileNameSuffix);
         }
 
-        ByteBuffer buffer = in.duplicate();
-        return new Record(buffer);
+        ByteBuffer in = _getInputBuffer(inRaf, idx.offset, idx.size);
+
+        //ByteBuffer buffer = in.duplicate();
+
+        try {
+            inRaf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (in == null) {
+            return null;
+        }
+
+        return new Record(in);
+        //return new Record(buffer);
     }
 
     public Index putRecord (Record r) {
@@ -79,6 +93,33 @@ public class Storage {
         return idx;
     }
 
+    public Indexer makeIndexerForActiveFile() {
+        RandomAccessFile inRaf = _getInRaf(_activeFileId.get());
+        if (inRaf == null) {
+            return null;
+        }
+
+        int length = 0;
+        try {
+            length = (int)inRaf.length();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        ByteBuffer in = _getInputBuffer(inRaf, 0, length);
+
+        // make indexer
+        Indexer indexer = Indexer.makeIndexerFromStorage(in);
+
+        try {
+            inRaf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return indexer;
+    }
+
     public Storage (String path, String fileNameSuffix, int advisoryMaxSize) {
         this._path = path;
         this._fileNameSuffix = fileNameSuffix;
@@ -92,6 +133,7 @@ public class Storage {
         if (activeFileId == -1) {
             _activeFileId.set(1);
             _activeFileSize.set(0);
+            return;
         }
 
         _activeFileId.set(activeFileId);
@@ -112,7 +154,7 @@ public class Storage {
         for (String fileName : fileNames)
         {
             if(fileName.endsWith(_fileNameSuffix)) {
-                fileName.split(".");
+                //fileName.split(".");
                 id = Integer.valueOf(fileName.substring(0, fileName.indexOf(".")));
                 if (id > maxFileId) {
                     maxFileId = id;
@@ -123,14 +165,14 @@ public class Storage {
     }
 
     private String _makeActiveFileName () {
-        _activeFileName = _makeFileName(_activeFileId.get());
+        _activeFileName = Util.makeFileName(_path, _activeFileId.get(), _fileNameSuffix);
         return _activeFileName;
     }
-
+/*
     private String _makeFileName (int fileId) {
         return _path + "/" + fileId + "." + _fileNameSuffix;
     }
-
+*/
     private void _createNewActiveFileIfNeeded () {
         if (_activeFileSize.get() >= _advisoryMaxSize) {
             _closeActiveFile();
@@ -187,17 +229,20 @@ public class Storage {
         }
     }
 
-    private ByteBuffer _getInputBuffer(Index idx) {
+    private RandomAccessFile _getInRaf(int fileId) {
+        RandomAccessFile inRaf = null;
+        try {
+            inRaf = new RandomAccessFile(Util.makeFileName(_path, fileId, _fileNameSuffix), "r");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return inRaf;
+    }
+
+    private ByteBuffer _getInputBuffer(RandomAccessFile inRaf, int offset, int size) {
         MappedByteBuffer in = null;
         try {
-            if (_inRaf != null) {
-                _inRaf.close();
-                _inRaf = null;
-            }
-
-            _inRaf = new RandomAccessFile(_makeFileName(idx.fileId), "r");
-            in = _inRaf.getChannel().map(FileChannel.MapMode.READ_ONLY, idx.offset, idx.size);
-
+            in = inRaf.getChannel().map(FileChannel.MapMode.READ_ONLY, offset, size);
         } catch (IOException e) {
             e.printStackTrace();
         }
