@@ -51,10 +51,25 @@ public class AltaiDB {
         String indexerFullPathName = Util.makeIndexerName(INDEX_PATH, 0);
         _indexer = Indexer.loadIndexer(indexerFullPathName);
         if (_indexer == null || _indexer.getMap() == null) {
-            _indexer = new Indexer (indexerFullPathName);
+            // check if there is idx.tmp
+            String tmpIdxName = Util.makeFileName(INDEX_PATH, 0, "idx.tmp");
+            File file = new File(tmpIdxName);
+            if(file.exists()) {
+                _indexer = Indexer.loadIndexer(tmpIdxName);
+                if (_indexer != null && _indexer.getMap() != null) {
+                    // rename 0.idx.tmp to 0.idx
+                    file.renameTo(new File(indexerFullPathName));
+                }
+            }
+
+            if (_indexer == null || _indexer.getMap() == null) {
+                _indexer = new Indexer(indexerFullPathName);
+            }
         }
-        _loadIncrementIndexer();
-        _dumpIndexer();
+        if (_loadIncrementIndexer()) {
+            _dumpIndexer();
+        }
+
 
 
         //_indexer = new Indexer("/home/like/dev/test_altai/index", 0, "idx");
@@ -165,35 +180,53 @@ public class AltaiDB {
         return true;
     }
 
-    private void _loadIncrementIndexer() {
+    private boolean _loadIncrementIndexer() {
         // load all incremental indexers from files
         File file = new File (INDEX_PATH);
         String fileNames[];
         fileNames = file.list();
         if (fileNames.length == 0) {
-            return;
+            return false;
         }
 
         long id;
+        Indexer indexer;
+        boolean isLoaded = false;
         for (String fileName : fileNames)
         {
             if(fileName.endsWith(".idx")) {
                 id = Long.valueOf(fileName.substring(0, fileName.indexOf(".")));
-                Indexer indexer = Indexer.loadIndexer(Util.makeIndexerName(INDEX_PATH, id));
-                _indexer.getMap().putAll(indexer.getMap());
+                indexer = Indexer.loadIndexer(Util.makeIndexerName(INDEX_PATH, id));
+                if (indexer != null) {
+                    _indexer.getMap().putAll(indexer.getMap());
+                    isLoaded = true;
+                }
             }
         }
 
         // generate last incremental indexer from data file
+        indexer = _getStorage().makeIndexerForActiveFile();
+        if (indexer != null) {
+            _indexer.getMap().putAll(indexer.getMap());
+            isLoaded = true;
+        }
 
+        return isLoaded;
     }
 
     private void _dumpIndexer() {
+        boolean isOk;
         // dump Indexer to idx.tmp
+        isOk = Indexer.writeIndexer(Util.makeFileName(INDEX_PATH, 0, "idx.tmp"), _indexer);
+        if (!isOk) {
+            System.out.println("dump tmp indexer failure!");
+            return;
+        }
 
         // remove xxx.idx
 
         // rename idx.tmp to 0.idx
+
     }
 
     private static Indexer _getIndexer() {
