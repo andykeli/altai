@@ -1,5 +1,7 @@
 package com.altai.storage;
 
+import com.altai.index.Index;
+
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
@@ -7,28 +9,28 @@ import java.nio.ByteBuffer;
  * Created by like on 7/2/16.
  */
 public class Record implements Serializable {
-    private ByteBuffer buffer;
+    private ByteBuffer _buffer;
 
     public Record (ByteBuffer buffer) {
-        this.buffer = buffer;
+        this._buffer = buffer;
     }
 
     public ByteBuffer getBuffer() {
-        return buffer;
+        return _buffer;
     }
 
     public String getValue() {
-        if (buffer == null) return null;
+        if (_buffer == null) return null;
 
-        int kSize = buffer.getInt(0);
-        int vSize = buffer.getInt(4);
+        int kSize = _buffer.getInt(0);
+        int vSize = _buffer.getInt(4);
 
         if (vSize == 0) {
             return null;
         }
 
         byte[] v = new byte[vSize];
-        buffer.get(v, 8 + kSize, vSize);
+        _buffer.get(v, 8 + kSize, vSize);
         return v.toString();
     }
 
@@ -36,19 +38,38 @@ public class Record implements Serializable {
 
         // format: kSize(4 bytes), vSize(4 bytes), key(1..n), value(0..n, optional)
 
-        buffer.putInt(key.length());
+        _buffer.putInt(key.length());
 
         int vSize = 0;
         if (value != null) {
             vSize = value.length();
         }
 
-        buffer.putInt(vSize);
+        _buffer.putInt(vSize);
 
-        buffer.put(key.getBytes());
+        _buffer.put(key.getBytes());
 
         if (value != null) {
-            buffer.put(value.getBytes());
+            _buffer.put(value.getBytes());
         }
+    }
+
+    public static Index readRecord(ByteBuffer buffer, int fileId) {
+        // read a piece of record from buffer(ByteBuffer), then generate its index
+        Index idx = null;
+        int offset = buffer.position();
+
+        int kSize = buffer.getInt();
+        int vSize = buffer.getInt();
+
+        byte[] k = new byte[kSize];
+        buffer.get(k, buffer.position(), kSize);
+
+        if (vSize != 0) {
+            byte[] v = new byte[vSize];
+            buffer.get(v, buffer.position(), vSize);
+        }
+
+        return new Index(k.toString(), fileId, buffer.position()-offset, offset);
     }
 }

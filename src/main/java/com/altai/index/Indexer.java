@@ -3,7 +3,6 @@ package com.altai.index;
 import com.altai.common.Serialization;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 
 /**
@@ -75,14 +74,5 @@ public class Indexer implements Serializable{
     public static boolean writeIndexer(String indexerFullPathName, Indexer indexer) {
         //Write Obj to File
         return Serialization.writeToFile(indexerFullPathName, indexer);
-    }
-
-    public static Indexer makeIndexerFromStorage(ByteBuffer buffer) {
-        if (buffer == null) {
-            return null;
-        }
-
-
-        return null;
     }
 }

@@ -109,7 +109,7 @@ public class Storage {
         ByteBuffer in = _getInputBuffer(inRaf, 0, length);
 
         // make indexer
-        Indexer indexer = Indexer.makeIndexerFromStorage(in);
+        Indexer indexer = _makeIndexerFromStorage(in, _activeFileId.get());
 
         try {
             inRaf.close();
@@ -118,6 +118,22 @@ public class Storage {
         }
 
         return indexer;
+    }
+
+    private static Indexer _makeIndexerFromStorage(ByteBuffer buffer, int fileId) {
+        if (buffer == null) {
+            return null;
+        }
+
+        Indexer indexer = new Indexer("dummy");
+        boolean hasIndex = false;
+        while (buffer.position() != buffer.limit()) {
+            Index idx = Record.readRecord(buffer, fileId);
+            indexer.put(idx.key, idx);
+            hasIndex = true;
+        }
+
+        return hasIndex ? indexer : null;
     }
 
     public Storage (String path, String fileNameSuffix, int advisoryMaxSize) {
